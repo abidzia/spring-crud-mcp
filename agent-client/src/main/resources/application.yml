@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: agent-client
+
+  # This is a console agent, not a web app — don't start a server.
+  main:
+    web-application-type: none
+
+  ai:
+    # ---- LLM (Azure OpenAI) ----
+    # Disable ALL auto-configured OpenAI models — each one otherwise tries to
+    # build a client from env credentials at startup and fails. AzureOpenAiConfig
+    # supplies the only chat model, wired to the Azure endpoint (api-key header +
+    # api-version handled by the SDK).
+    model:
+      chat: none
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
+
+    # ---- MCP client ----
+    mcp:
+      client:
+        name: agent-client
+        # Turn discovered MCP tools into ToolCallbacks the LLM can invoke (default true).
+        toolcallback:
+          enabled: true
+        streamable-http:
+          # Each entry is one MCP server. The client opens a session per entry
+          # and merges all their tools into one tool list for the model. Add or
+          # remove servers here — nothing else changes.
+          connections:
+            products:
+              url: http://localhost:${PRODUCT_MCP_PORT:8080}
+              endpoint: /mcp
+            orders:
+              url: http://localhost:${ORDER_MCP_PORT:8081}
+              endpoint: /mcp
+
+# ---- Azure OpenAI connection (read by AzureOpenAiConfig) ----
+azure:
+  openai:
+    # Resource host only (no path) — the SDK appends /openai/deployments/{model}/chat/completions.
+    # Required: set AZURE_OPENAI_ENDPOINT, e.g. https://<your-resource>.cognitiveservices.azure.com
+    endpoint: ${AZURE_OPENAI_ENDPOINT}
+    api-key: ${AZURE_OPENAI_KEY}
+    # Azure deployment name (used as the model id).
+    deployment: ${AZURE_OPENAI_DEPLOYMENT:gpt-4o-mini}
+    api-version: ${AZURE_OPENAI_API_VERSION:2024-05-01-preview}
+    max-tokens: 1024
+
+logging:
+  level:
+    org.springframework.ai.mcp: INFO
