@@ -136,6 +136,9 @@ Inside the network the agent reaches the servers by service name (`http://produc
 `http://order-mcp:8081`), injected via `PRODUCT_MCP_URL` / `ORDER_MCP_URL`. Nothing sensitive
 is baked into the images — LLM credentials are passed through from your host environment.
 
+Builds use a BuildKit **`.m2` cache mount**, so Maven dependencies are downloaded once per
+machine and reused across rebuilds — a code-only change rebuilds in a few seconds.
+
 ## Configuration (agent-client)
 
 The agent talks to an LLM over an OpenAI-compatible API. Before running it, provide your
