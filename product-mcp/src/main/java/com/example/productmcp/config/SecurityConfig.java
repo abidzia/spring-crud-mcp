@@ -29,7 +29,11 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Stateless bearer-token API: no server-side session, no CSRF tokens.
+                // CSRF disabled by design: this is a stateless, Bearer-token API with no
+                // session or cookies, so there is no ambient credential for a forged
+                // cross-site request to ride on — CSRF does not apply. Leaving it on would
+                // 403 the agent's token-authenticated POST /mcp and REST writes. (CodeQL
+                // java/spring-disabled-csrf-protection is a known false positive here.)
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
