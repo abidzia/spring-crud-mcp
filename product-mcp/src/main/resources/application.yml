@@ -23,6 +23,16 @@ spring:
       enabled: false
       path: /h2-console
 
+  # Phase 1: OAuth2 Resource Server. The server validates Bearer JWTs against the
+  # IdP's public keys (JWKS). jwk-set-uri fetches lazily on first request, so this
+  # server still starts before the IdP (sub-PR #3) exists — requests just fail to
+  # validate until it does. Point JWT_JWK_SET_URI at Entra/Okta to switch IdPs.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:9000/oauth2/jwks}
+
   ai:
     mcp:
       server:
