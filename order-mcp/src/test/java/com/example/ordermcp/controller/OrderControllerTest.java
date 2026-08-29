@@ -1,5 +1,6 @@
 package com.example.ordermcp.controller;
 
+import com.example.ordermcp.exception.OrderNotFoundException;
 import com.example.ordermcp.model.Order;
 import com.example.ordermcp.service.OrderService;
 import org.junit.jupiter.api.Test;
@@ -16,9 +17,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// NOTE: order-mcp has no GlobalExceptionHandler yet, so a not-found id currently
-// surfaces as 500 rather than 404 — a Phase-0 hardening gap, deliberately not
-// asserted here. Add the handler in the hardening branch, then a 404 test.
 @WebMvcTest(OrderController.class)
 class OrderControllerTest {
 
@@ -64,5 +62,13 @@ class OrderControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.customer").value("Alice"));
+    }
+
+    @Test
+    void getByIdUnknownReturns404() throws Exception {
+        given(service.findById(99L)).willThrow(new OrderNotFoundException(99L));
+
+        mvc.perform(get("/api/orders/99"))
+                .andExpect(status().isNotFound());
     }
 }

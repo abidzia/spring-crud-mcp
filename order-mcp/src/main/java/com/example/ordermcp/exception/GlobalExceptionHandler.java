@@ -1,4 +1,4 @@
-package com.example.productmcp.exception;
+package com.example.ordermcp.exception;
 
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -19,23 +19,21 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Central error handling. Extends {@link ResponseEntityExceptionHandler} so the
- * framework's own exceptions (404/405/unsupported-media, etc.) keep their correct
- * status as RFC 9457 {@link ProblemDetail}s, while domain and validation errors
- * are mapped explicitly. A catch-all returns a sanitized 500 so internal details
- * never leak to REST clients or, via the MCP tools, to the model.
+ * Central error handling for order-mcp (previously missing, so an unknown order
+ * id returned 500). Extends {@link ResponseEntityExceptionHandler} so framework
+ * exceptions keep their correct status, maps domain/validation errors explicitly,
+ * and returns a sanitized 500 for anything unexpected.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler(ProductNotFoundException.class)
-    public ProblemDetail handleNotFound(ProductNotFoundException ex) {
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ProblemDetail handleNotFound(OrderNotFoundException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
-    /** Validation failures raised programmatically (e.g. from the MCP tools). */
     @ExceptionHandler(ConstraintViolationException.class)
     public ProblemDetail handleConstraintViolation(ConstraintViolationException ex) {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Validation failed");
@@ -44,13 +42,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return pd;
     }
 
-    /** Bad arguments surfaced as IllegalArgumentException. */
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
-    /** @Valid failures on request bodies -> 400 with per-field messages. */
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpHeaders headers,
@@ -64,7 +60,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.badRequest().body(pd);
     }
 
-    /** Catch-all: log the real cause, return a sanitized message. */
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpected(Exception ex) {
         log.error("Unexpected error", ex);

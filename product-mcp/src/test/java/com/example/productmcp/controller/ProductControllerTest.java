@@ -105,6 +105,15 @@ class ProductControllerTest {
     }
 
     @Test
+    void createWithInvalidBodyReturns400() throws Exception {
+        // blank name, negative price, negative quantity all violate validation
+        mvc.perform(post("/api/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"\",\"price\":-1,\"quantity\":-5}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void deleteReturns204() throws Exception {
         mvc.perform(delete("/api/products/1"))
                 .andExpect(status().isNoContent());
