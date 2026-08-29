@@ -1,12 +1,17 @@
 package com.example.ordermcp.tool;
 
+import com.example.ordermcp.dto.OrderRequest;
 import com.example.ordermcp.model.Order;
 import com.example.ordermcp.service.OrderService;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * MCP surface for orders. Tool names are domain-prefixed with "order" so they
@@ -16,10 +21,22 @@ import java.util.List;
 @Component
 public class OrderTools {
 
-    private final OrderService orderService;
+    private static final String ALLOWED_STATUS = "NEW|SHIPPED|CANCELLED";
 
-    public OrderTools(OrderService orderService) {
+    private final OrderService orderService;
+    private final Validator validator;
+
+    public OrderTools(OrderService orderService, Validator validator) {
         this.orderService = orderService;
+        this.validator = validator;
+    }
+
+    private OrderRequest validated(OrderRequest request) {
+        Set<ConstraintViolation<OrderRequest>> violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
+        }
+        return request;
     }
 
     @McpTool(name = "list_orders",
@@ -51,7 +68,7 @@ public class OrderTools {
             @McpToolParam(description = "Product being ordered", required = true) String product,
             @McpToolParam(description = "Quantity ordered", required = true) Integer quantity,
             @McpToolParam(description = "Order status, e.g. NEW, SHIPPED, CANCELLED", required = false) String status) {
-        return orderService.create(new Order(customer, product, quantity, status));
+        return orderService.create(validated(new OrderRequest(customer, product, quantity, status)).toEntity());
     }
 
     @McpTool(name = "update_order_status",
@@ -59,6 +76,9 @@ public class OrderTools {
     public Order updateOrderStatus(
             @McpToolParam(description = "The numeric id of the order to update", required = true) Long id,
             @McpToolParam(description = "New status, e.g. NEW, SHIPPED, CANCELLED", required = true) String status) {
+        if (status == null || !status.matches(ALLOWED_STATUS)) {
+            throw new IllegalArgumentException("status must be NEW, SHIPPED or CANCELLED");
+        }
         return orderService.updateStatus(id, status);
     }
 

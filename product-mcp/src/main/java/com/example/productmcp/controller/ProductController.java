@@ -1,7 +1,9 @@
 package com.example.productmcp.controller;
 
+import com.example.productmcp.dto.ProductRequest;
 import com.example.productmcp.model.Product;
 import com.example.productmcp.service.ProductService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -33,9 +35,9 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<Product> create(@RequestBody Product product,
+    public ResponseEntity<Product> create(@Valid @RequestBody ProductRequest request,
                                           UriComponentsBuilder uriBuilder) {
-        Product created = productService.create(product);
+        Product created = productService.create(request.toEntity());
         URI location = uriBuilder.path("/api/products/{id}")
                 .buildAndExpand(created.getId())
                 .toUri();
@@ -43,8 +45,8 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    public Product update(@PathVariable Long id, @RequestBody Product product) {
-        return productService.update(id, product);
+    public Product update(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
+        return productService.update(id, request.toEntity());
     }
 
     @DeleteMapping("/{id}")

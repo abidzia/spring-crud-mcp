@@ -1,21 +1,36 @@
 package com.example.productmcp.tool;
 
+import com.example.productmcp.dto.ProductRequest;
 import com.example.productmcp.model.Product;
 import com.example.productmcp.service.ProductService;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 
 @Component
 public class ProductTools {
 
     private final ProductService productService;
+    private final Validator validator;
 
-    public ProductTools(ProductService productService) {
+    public ProductTools(ProductService productService, Validator validator) {
         this.productService = productService;
+        this.validator = validator;
+    }
+
+    private ProductRequest validated(ProductRequest request) {
+        Set<ConstraintViolation<ProductRequest>> violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
+        }
+        return request;
     }
 
     @McpTool(name = "list_products",
@@ -47,7 +62,7 @@ public class ProductTools {
             @McpToolParam(description = "Product description", required = false) String description,
             @McpToolParam(description = "Unit price", required = true) BigDecimal price,
             @McpToolParam(description = "Quantity in stock", required = true) Integer quantity) {
-        return productService.create(new Product(name, description, price, quantity));
+        return productService.create(validated(new ProductRequest(name, description, price, quantity)).toEntity());
     }
 
     @McpTool(name = "update_product",
@@ -58,7 +73,7 @@ public class ProductTools {
             @McpToolParam(description = "Product description", required = false) String description,
             @McpToolParam(description = "Unit price", required = true) BigDecimal price,
             @McpToolParam(description = "Quantity in stock", required = true) Integer quantity) {
-        return productService.update(id, new Product(name, description, price, quantity));
+        return productService.update(id, validated(new ProductRequest(name, description, price, quantity)).toEntity());
     }
 
     @McpTool(name = "delete_product",
