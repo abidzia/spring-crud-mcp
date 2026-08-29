@@ -78,11 +78,13 @@ These were deferred because they pair naturally with Spring Security:
    mapping. *Tests:* 401 without token, 403 with wrong scope, 200 with the right scope.
 2. **Method authorization** — `@PreAuthorize` on the service methods; verify REST **and** MCP
    paths honor scopes. *Tests:* per-scope allow/deny.
-3. **agent-client as OAuth2 client** — client-credentials token + Bearer on MCP/REST calls;
-   end-to-end run against the secured servers.
-4. **HTTPS + security headers** — Spring Security TLS/headers config, `tls` dev profile.
-5. **Local IdP for dev** *(optional)* — Keycloak (or Spring Authorization Server) as a
-   `compose.yaml` service under a profile, pre-seeded with the scopes and a client for the agent.
+3. **Local IdP for dev** — **Spring Authorization Server** (moved ahead of the agent client,
+   which needs a live issuer for its E2E run), pre-seeded with the scopes and a
+   client-credentials registration for the agent. *(Was #5; now a prerequisite, not optional.)*
+4. **agent-client as OAuth2 client** — client-credentials token + Bearer on MCP/REST calls
+   (`OAuth2AuthorizedClientManager` wired manually, no `HttpSecurity`); end-to-end run against
+   the secured servers.
+5. **HTTPS + security headers** — Spring Security TLS/headers config, `tls` dev profile.
 
 ## Testing strategy
 
@@ -90,15 +92,32 @@ These were deferred because they pair naturally with Spring Security:
   specific `authorities(...)` to assert the 401/403/200 matrix per endpoint and scope.
 - Service-layer `@PreAuthorize` tests with `@WithMockUser` / mock authentication.
 
-## Decisions to make before starting
+## Decisions (resolved)
 
-1. **IdP choice** — Entra ID (already in the stack via Azure), Okta, or Keycloak/Spring
-   Authorization Server for a self-contained demo?
-2. **Agent identity** — pure service identity (client-credentials), or on-behalf-of a real
-   user (token pass-through / OBO)?
-3. **JWT vs opaque tokens** — self-contained vs introspection/revocation.
-4. **MCP auth mechanism** — adopt `spring-ai-community/mcp-security`, or attach the Bearer
-   header via a custom MCP client transport customizer?
+1. **IdP choice → Spring Authorization Server** (dev/demo). Self-contained, same stack, no
+   external tenant, CI-friendly. Resource-server config is driven purely by
+   `issuer-uri` / `jwk-set-uri`, so pointing at Entra ID or Okta later is a config change,
+   not code.
+2. **Agent identity → client-credentials service identity.** The console agent has no
+   upstream user token to pass on; on-behalf-of (OBO) is deferred until a real user-facing
+   front-end exists.
+3. **Token type → JWT** (self-contained, validated via `jwk-set-uri`). Opaque +
+   introspection is revisited only if instant central revocation becomes a hard requirement
+   (Phase 2+).
+4. **MCP auth mechanism → custom transport customizer.** Inject `Authorization: Bearer` via
+   a WebClient/transport customizer backed by an `OAuth2AuthorizedClientManager`; both
+   servers stay plain OAuth2 Resource Servers. `spring-ai-community/mcp-security` is a
+   separate, non-blocking spike (its alignment with Spring AI 2.0.0 / Boot 4.1 is unproven).
+
+### Consequences for sequencing
+
+- Sub-PRs **#1** and **#2** need only a `jwk-set-uri` and are fully testable with
+  `spring-security-test`'s `jwt()` post-processor — **no running IdP required**.
+- Sub-PR **#3** needs a live token issuer for its end-to-end run, so **sub-PR #5 (Spring
+  Authorization Server) moves ahead of #3** rather than being optional/last.
+- In **#3**, wire the `OAuth2AuthorizedClientManager` manually (client-credentials, no
+  `HttpSecurity`): agent-client runs `web-application-type: none`, so the servlet
+  security autoconfig that `spring-boot-starter-oauth2-client` normally relies on won't apply.
 
 ## Deferred to later phases
 
