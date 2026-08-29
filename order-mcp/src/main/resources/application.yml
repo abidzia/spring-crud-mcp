@@ -13,9 +13,11 @@ spring:
       ddl-auto: update
     show-sql: false
 
+  # H2 console is disabled by default (attack surface). Enable it only for local
+  # debugging by running with the "dev" profile (see the profile block below).
   h2:
     console:
-      enabled: true
+      enabled: false
       path: /h2-console
 
   ai:
@@ -29,3 +31,13 @@ spring:
 
 server:
   port: 8081
+
+---
+# Local-only profile: `mvn spring-boot:run -Dspring-boot.run.profiles=dev`
+spring:
+  config:
+    activate:
+      on-profile: dev
+  h2:
+    console:
+      enabled: true
