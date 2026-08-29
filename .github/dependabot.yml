@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # Java dependencies across the Maven reactor (product-mcp, order-mcp, agent-client)
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "java"]
+
+  # Keep the GitHub Actions used in the workflows up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "ci"]
