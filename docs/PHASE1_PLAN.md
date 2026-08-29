@@ -63,6 +63,34 @@ tools sit behind the `*:write` scopes.
   prompt-injected tool call still can't exceed the caller's scopes.
 - Tool-level allow-lists and human-in-the-loop for destructive tools are **Phase 3**, not here.
 
+## Defense in depth — why not gateway-only
+
+A gateway (Spring Cloud Gateway / APIM), added in **Phase 2**, is the right place for the
+*first* line of defense — edge authentication, coarse scope checks, rate limiting, WAF. It is
+**not** the *last* line, and Phase 1 does **not** depend on it. Two reasons the service must
+re-verify every request itself:
+
+1. **Zero-trust.** If a request ever reaches a server *not* through the gateway (an internal
+   caller, a mesh peer, SSRF, a misrouted call), a service that trusts blindly has no defense.
+   Each server independently validates the JWT — belt and suspenders, by design.
+2. **The gateway structurally can't do fine-grained authorization.** It has no domain context:
+   it can't know that an order belongs to a given customer, or that `delete_product` needs
+   `catalog:write`. Those decisions need the service. And crucially, the agent (LLM-driven,
+   semi-untrusted) sits **inside** the perimeter — so for an MCP system the service-layer
+   `@PreAuthorize` is the **primary** control, not a redundant backstop.
+
+Target shape (gateway **and** service, never gateway instead of service):
+
+```
+caller ─▶ gateway (edge authN, coarse scope, rate limit, WAF)   ← Phase 2
+              │  validated JWT forwarded
+              ▼
+        service (re-validate JWT + @PreAuthorize authZ) ─▶ DB    ← Phase 1
+```
+
+So sub-PRs #1/#2 (JWT validation + `@PreAuthorize` in each server) stand on their own and are
+**not** made redundant by a future gateway — they are the layer that actually guards the domain.
+
 ## HTTPS & security headers (carried over from Phase 0)
 
 These were deferred because they pair naturally with Spring Security:
