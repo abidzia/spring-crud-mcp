@@ -112,6 +112,33 @@ Then, at the `you >` prompt, try:
 - `add a product: Standing Fan, 40W desk fan, price 29.99, qty 12` → `create_product`
 - `create an order: Bob, USB-C Hub, qty 2` → `create_order`
 
+## Run with Docker (recommended)
+
+Compose builds each module into a slim JRE image and runs the two servers on a shared
+network. The agent is an interactive console app, so it is gated behind an `agent` profile
+and run on demand.
+
+```bash
+# build images and start both servers (product-mcp :8080, order-mcp :8081)
+docker compose up --build -d
+
+# run the interactive agent (set your LLM provider's env vars first — see Configuration)
+docker compose --profile agent run --rm agent-client
+
+# verify the client -> server path without an LLM (no key needed)
+docker compose --profile agent run --rm agent-client --selftest
+
+# stop everything
+docker compose down
+```
+
+Inside the network the agent reaches the servers by service name (`http://product-mcp:8080`,
+`http://order-mcp:8081`), injected via `PRODUCT_MCP_URL` / `ORDER_MCP_URL`. Nothing sensitive
+is baked into the images — LLM credentials are passed through from your host environment.
+
+Builds use a BuildKit **`.m2` cache mount**, so Maven dependencies are downloaded once per
+machine and reused across rebuilds — a code-only change rebuilds in a few seconds.
+
 ## Configuration (agent-client)
 
 The agent talks to an LLM over an OpenAI-compatible API. Before running it, provide your

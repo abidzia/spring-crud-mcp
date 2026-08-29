@@ -1,0 +1,70 @@
+# Runs the two MCP servers on a shared network. The agent-client is an
+# interactive console app, so it is gated behind the "agent" profile and meant
+# to be run on demand rather than started with `up`.
+#
+#   docker compose up --build            # start product-mcp + order-mcp
+#   docker compose --profile agent run --rm agent-client   # interactive agent
+#
+# The agent needs AZURE_OPENAI_KEY and AZURE_OPENAI_ENDPOINT in your environment.
+
+services:
+  product-mcp:
+    build: ./product-mcp
+    image: spring-crud-mcp/product-mcp
+    container_name: product-mcp
+    ports:
+      - "8080:8080"
+    networks: [mcpnet]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8080'"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  order-mcp:
+    build: ./order-mcp
+    image: spring-crud-mcp/order-mcp
+    container_name: order-mcp
+    ports:
+      - "8081:8081"
+    networks: [mcpnet]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8081'"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  agent-client:
+    build: ./agent-client
+    image: spring-crud-mcp/agent-client
+    profiles: ["agent"]            # not started by `up`; run on demand
+    depends_on:
+      product-mcp:
+        condition: service_healthy
+      order-mcp:
+        condition: service_healthy
+    environment:
+      # Reach the servers by service name on the shared network.
+      PRODUCT_MCP_URL: http://product-mcp:8080
+      ORDER_MCP_URL: http://order-mcp:8081
+      # Passed through from your host environment (never baked into the image).
+      AZURE_OPENAI_KEY: ${AZURE_OPENAI_KEY:-}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+    networks: [mcpnet]
+    stdin_open: true              # keep STDIN open for the console loop
+    tty: true
+
+  # ---- Phase-4 hook (security roadmap): swap H2 for a managed, encrypted DB ----
+  # postgres:
+  #   image: postgres:16
+  #   environment:
+  #     POSTGRES_DB: catalog
+  #     POSTGRES_USER: app
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #   networks: [mcpnet]
+
+networks:
+  mcpnet:
+    driver: bridge
