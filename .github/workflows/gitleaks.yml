@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read # gitleaks reads PR commit info on pull_request events
 
 jobs:
   scan:
