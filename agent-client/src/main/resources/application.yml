@@ -34,10 +34,12 @@ spring:
           # remove servers here — nothing else changes.
           connections:
             products:
-              url: http://localhost:${PRODUCT_MCP_PORT:8080}
+              # Full URL override (PRODUCT_MCP_URL) for container networking, e.g.
+              # http://product-mcp:8080; falls back to localhost:PRODUCT_MCP_PORT.
+              url: ${PRODUCT_MCP_URL:http://localhost:${PRODUCT_MCP_PORT:8080}}
               endpoint: /mcp
             orders:
-              url: http://localhost:${ORDER_MCP_PORT:8081}
+              url: ${ORDER_MCP_URL:http://localhost:${ORDER_MCP_PORT:8081}}
               endpoint: /mcp
 
 # ---- Azure OpenAI connection (read by AzureOpenAiConfig) ----
