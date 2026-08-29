@@ -1,0 +1,26 @@
+name: Semgrep
+
+# Static analysis (SAST) that works on private repos with no GitHub Advanced
+# Security. Findings gate the build (visible in the Actions log / PR check)
+# rather than being uploaded to the Security tab (which would need GHAS).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Scan
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Semgrep scan
+        # Community rulesets (no login required); --error fails on findings.
+        run: semgrep scan --config p/java --config p/security-audit --error
