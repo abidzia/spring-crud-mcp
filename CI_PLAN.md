@@ -18,14 +18,15 @@ each PR. It also removes the "needs Java + Maven locally" barrier for contributo
 |-----------|------|------|---------|
 | Build & test | GitHub Actions + `mvn verify` (reactor) | `.github/workflows/ci.yml` | push to `main`, all PRs |
 | Static analysis (SAST) | Semgrep (community rules) | `.github/workflows/semgrep.yml` | push to `main`, all PRs |
+| Static analysis (SAST) | CodeQL (java-kotlin) | `.github/workflows/codeql.yml` | push to `main`, PRs, weekly |
 | Dependency updates (SCA) | Dependabot (maven + github-actions) | `.github/dependabot.yml` | weekly |
 | Secret scanning | gitleaks | `.github/workflows/gitleaks.yml` | push, PRs |
 
-> **Private-repo note:** CodeQL code scanning is free only on **public** repos; on private
-> repos it needs GitHub Advanced Security. So SAST here uses **Semgrep** as a build gate
-> (findings show in the Actions log / PR check, not the Security tab). Dependabot and the
-> gitleaks action are free on personal private repos. If this repo ever gets GHAS (or goes
-> public), CodeQL can be added back.
+> **Two SAST layers:** the repo is public, so **CodeQL** (GitHub-native, deep dataflow,
+> results in Security → Code scanning) runs alongside **Semgrep** (fast, pattern-based, gates
+> the build). They complement each other. CodeQL code scanning is free on public repos; on a
+> private repo it would need GitHub Advanced Security, in which case drop `codeql.yml` and
+> keep Semgrep. Dependabot and the gitleaks action are free either way.
 
 ## Design notes
 
@@ -46,7 +47,7 @@ After these workflows have run once on `main`, enable in
 **Settings → Branches → Branch protection rules** for `main`:
 
 - Require a pull request before merging.
-- Require status checks to pass: **CI**, **Semgrep**, **gitleaks**.
+- Require status checks to pass: **CI**, **Semgrep**, **CodeQL**, **gitleaks**.
 - Require branches to be up to date before merging.
 - (Recommended) Require conversation resolution; restrict force-pushes.
 
@@ -55,7 +56,7 @@ After these workflows have run once on `main`, enable in
 
 ## Definition of done
 
-- [ ] `ci.yml`, `semgrep.yml`, `gitleaks.yml`, `dependabot.yml` committed and green on a PR.
+- [ ] `ci.yml`, `semgrep.yml`, `codeql.yml`, `gitleaks.yml`, `dependabot.yml` committed and green on a PR.
 - [ ] Branch protection on `main` requires the three checks + PR review.
 - [ ] `SECURITY.md` Phase 0 CI items checked off.
 
